@@ -1,0 +1,38 @@
+{% extends "base.html.twig" %}
+
+
+{% block content %}
+    <h1 class="has-text-centered is-size-1 mb-20">bunq Webapp</h1>
+    <div class="card block-center" style="max-width: 512px">
+        <div class="card-content">
+            <div class="media">
+                <div class="media-content">
+                    <p class="title is-4">Transactions</p>
+                </div>
+            </div>
+
+            <div class="content">
+                <ul>
+                    {% for transaction in transactions %}
+                        {% if transaction['amount']['value'] > 0 %}
+                            <li class="has-text-success">
+                                {{transaction['amount'] | amount}}
+                                FROM
+                                {{transaction['counterparty_alias']['display_name']}}
+                            </li>
+                        {% else %}
+                            <li class="has-text-danger">
+                                {{transaction['amount'] | amount}}
+                                TO
+                                {{transaction['counterparty_alias']['display_name']}}
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </div>
+            <footer class="card-footer">
+                <a class="card-footer-item" href="/dashboard">Dashboard</a>
+            </footer>
+        </div>
+    </div>
+{% endblock %}

@@ -4,8 +4,12 @@ use Slim\App;
 use Slim\Http\Request;
 use Slim\Http\Response;
 
-use bunq\Util\BunqEnumApiEnvironmentType;
 use bunq\Context\ApiContext;
+use bunq\Context\BunqContext;
+use bunq\Model\Generated\Endpoint\AttachmentPublicContent;
+use bunq\Model\Generated\Endpoint\MonetaryAccountBank;
+use bunq\Model\Generated\Endpoint\Payment;
+use bunq\Util\BunqEnumApiEnvironmentType;
 
 use GuzzleHttp\Client;
 
@@ -13,13 +17,66 @@ return function (App $app) {
     $container = $app->getContainer();
     $bunq_settings = $container->get('settings')['bunq'];
 
+    $redirect_if_auth_mw = function (Request $request, Response $response, $next) use ($container) {
+        if (isset($_SESSION['api_context'])) {
+            return $response->withRedirect($container->get('router')->pathFor('dashboard'));
+        }
+
+        return $next($request, $response);
+    };
+
+    $redirect_if_no_auth_mw = function (Request $request, Response $response, $next) use ($container) {
+        if (!isset($_SESSION['api_context'])) {
+            return $response->withRedirect($container->get('router')->pathFor('login'));
+        }
+
+        return $next($request, $response);
+    };
+
     $app->get('/', function (Request $request, Response $response, array $args) use ($container) {
         // Sample log message
         $container->get('logger')->info("Slim-Skeleton '/' route");
 
         // Render index view
         return $container->get('renderer')->render($response, 'index.html.twig', $args);
-    });
+    })->add($redirect_if_auth_mw);
+
+    $app->get('/dashboard', function (Request $request, Response $response, array $args) use ($container) {
+        // recreate context from session
+        $api_context_serialized = $_SESSION['api_context'];
+        $apiContext = ApiContext::fromJson($api_context_serialized);
+        BunqContext::loadApiContext($apiContext);
+
+        // fetch primary account details 
+        $primaryAccountId = BunqContext::getUserContext()->getMainMonetaryAccountId();
+        $primaryAccount = MonetaryAccountBank::get($primaryAccountId)->getValue();
+
+        // fetch avatar contents
+        $avatarImage = $primaryAccount->getAvatar()->getImage()[0];
+        $avatarId = $avatarImage->getAttachmentPublicUuid();
+        $avatarContents = AttachmentPublicContent::listing($avatarId)->getValue();
+        $avatarUrl = 'data:image/' . $avatarImage->getContentType() . ';base64,' . base64_encode($avatarContents);
+
+        return $container->get('renderer')->render($response, 'dashboard.html.twig', [
+            'account' => json_decode(json_encode($primaryAccount), true),
+            'avatarUrl' => $avatarUrl
+        ]);
+    })->setName('dashboard')->add($redirect_if_no_auth_mw);;
+
+    $app->get('/transactions', function (Request $request, Response $response, array $args) use ($container) {
+        // recreate context from session
+        $api_context_serialized = $_SESSION['api_context'];
+        $apiContext = ApiContext::fromJson($api_context_serialized);
+        BunqContext::loadApiContext($apiContext);
+
+        // fetch all transactions for primary account
+        $primaryAccountId = BunqContext::getUserContext()->getMainMonetaryAccountId();
+        $transactions = Payment::listing($primaryAccountId)->getValue();
+
+        return $container->get('renderer')->render($response, 'transactions.html.twig', [
+            'transactions' => json_decode(json_encode($transactions), true)
+        ]);
+    })->add($redirect_if_no_auth_mw);
 
     $app->get('/login', function (Request $request, Response $response, array $args) use ($container, $bunq_settings) {
         $base_url = $request->getUri()->getBaseUrl();
@@ -38,14 +95,14 @@ return function (App $app) {
         $_SESSION['auth_state'] = $state;
 
         return $response->withRedirect($target_url);
-    });
+    })->setName('login');
 
     $app->get('/auth-callback', function (Request $request, Response $response, array $args) use ($container, $bunq_settings) {
         $code = $request->getQueryParam('code');
         $state = $request->getQueryParam('state');
 
         $base_url = $request->getUri()->getBaseUrl();
-        $callback_url = $base_url. $container->get('router')->pathFor('auth-callback');
+        $callback_url = $base_url . $container->get('router')->pathFor('auth-callback');
 
         if (empty($state) || empty($code)) {
             $response->getBody()->write("Need to pass state and code!");

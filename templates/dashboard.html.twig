@@ -1,0 +1,38 @@
+{% extends "base.html.twig" %}
+
+{% block content %}
+    <h1 class="has-text-centered is-size-1 mb-20">bunq Webapp</h1>
+    <div class="card block-center" style="max-width: 512px">
+        <div class="card-image ">
+            <figure class="image pt-10">
+                <img alt="Account avatar" class="block-center" src="{{avatarUrl}}" style="width:256px; height:256px"/>
+            </figure>
+        </div>
+        <div class="card-content">
+            <div class="media">
+                <div class="media-content">
+                    <p class="title is-4">{{account['description'] | e}}</p>
+                </div>
+            </div>
+
+            <div class="content">
+                <dl class="columns is-multiline is-mobile">
+                    <dt class="column is-two-thirds ">Balance:</dt>
+                    <dd class="column is-one-third ">{{account['balance'] | amount}}</dd>
+
+                    <dt class="column is-two-thirds ">Daily Limit:</dt>
+                    <dd class="column is-one-third ">{{account['daily_limit'] | amount}}</dd>
+
+                    <dt class="column is-two-thirds ">Daily Spent:</dt>
+                    <dd class="column is-one-third ">{{account['daily_spent'] | amount}}</dd>
+
+                    <dt class="column is-two-thirds ">Overdraft Limit:</dt>
+                    <dd class="column is-one-third ">{{account['overdraft_limit'] | amount}}</dd>
+                </dl>
+            </div>
+            <footer class="card-footer">
+                <a class="card-footer-item" href="/transactions">Transactions</a>
+            </footer>
+        </div>
+    </div>
+{% endblock %}

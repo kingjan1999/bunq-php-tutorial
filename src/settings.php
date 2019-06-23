@@ -15,5 +15,13 @@ return [
             'path' => isset($_ENV['docker']) ? 'php://stdout' : __DIR__ . '/../logs/app.log',
             'level' => \Monolog\Logger::DEBUG,
         ],
+
+        // Bunq settings
+        'bunq' => [
+            'client_id' => getenv('BUNQ_CLIENT_ID'),
+            'client_secret' => getenv('BUNQ_CLIENT_SECRET'),
+            'auth_url' => 'https://oauth.sandbox.bunq.com/auth',
+            'token_url' => 'https://api-oauth.sandbox.bunq.com/v1/token',
+        ]
     ],
 ];
